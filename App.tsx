@@ -32,7 +32,7 @@ const App: React.FC = () => {
 
   // Persistent Save with Safety Checks
   useEffect(() => {
-    if (entries.length === 0) return;
+    // If entries are empty, we still want to save the empty array to clear storage
     try {
       const serialized = JSON.stringify(entries);
       localStorage.setItem('lifeThreads_entries', serialized);
@@ -156,7 +156,7 @@ const App: React.FC = () => {
         <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2.5rem] p-8 md:p-14 text-white shadow-2xl shadow-indigo-200 relative overflow-hidden">
           <div className="relative z-10">
             <span className="inline-block px-3 py-1 bg-indigo-500/30 rounded-full text-[10px] font-bold uppercase tracking-widest mb-6 backdrop-blur-sm border border-indigo-400/30">Welcome back</span>
-            <h2 className="text-3xl md:text-5xl font-black mb-6 leading-[1.15]">How is your 2024 story unfolding?</h2>
+            <h2 className="text-3xl md:text-5xl font-black mb-6 leading-[1.15]">How is your story unfolding?</h2>
             <p className="text-indigo-100 text-lg md:text-xl max-w-xl mb-10 leading-relaxed font-medium">
               A digital vault for your memories, connected like a conversation with your past self.
             </p>
@@ -186,7 +186,7 @@ const App: React.FC = () => {
             </button>
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Sparkles size={24} /></div>
-              <h3 className="text-xl font-black text-slate-800 tracking-tight">Your Year in Review</h3>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">Your Narrative</h3>
             </div>
             <p className="text-slate-700 leading-relaxed italic text-lg whitespace-pre-wrap font-serif">"{yearSummary}"</p>
           </div>

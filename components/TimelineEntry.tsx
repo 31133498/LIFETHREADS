@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { DiaryEntry } from '../types';
 import { Calendar, Trash2, Edit3, Sparkles, X, Maximize2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 
 interface TimelineEntryProps {
   entry: DiaryEntry;
@@ -22,6 +22,12 @@ const TimelineEntry: React.FC<TimelineEntryProps> = ({
   isReflecting 
 }) => {
   const [activeImage, setActiveImage] = useState<string | null>(null);
+
+  // Defensive helper for date formatting to prevent app crashes on corrupted data
+  const safeFormat = (dateStr: string, formatStr: string) => {
+    const d = new Date(dateStr);
+    return isValid(d) ? format(d, formatStr) : "Date Unknown";
+  };
 
   const renderImageGrid = () => {
     if (!entry.images || entry.images.length === 0) return null;
@@ -120,10 +126,10 @@ const TimelineEntry: React.FC<TimelineEntryProps> = ({
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">
-                {format(new Date(entry.date), 'EEEE, MMMM do, yyyy')}
+                {safeFormat(entry.date, 'EEEE, MMMM do, yyyy')}
               </p>
               <h3 className="text-xl font-semibold text-slate-800">
-                {format(new Date(entry.date), 'HH:mm')}
+                {safeFormat(entry.date, 'HH:mm')}
               </h3>
             </div>
             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

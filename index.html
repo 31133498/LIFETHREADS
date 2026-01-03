@@ -5,7 +5,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LifeThreads Diary</title>
+  <!-- Tailwind Play CDN for rapid styling -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Suppress production warning and define minimal config
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <!-- Process Shim: Critical for browser-based apps using process.env -->
+  <script>
+    window.process = window.process || { env: {} };
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -43,5 +60,7 @@
 </head>
 <body>
   <div id="root"></div>
+  <!-- Essential: Entry point script for ES Modules -->
+  <script type="module" src="./index.tsx"></script>
 </body>
 </html>
