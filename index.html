@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LifeThreads Diary</title>
   
-  <!-- Process Shim: Critical for avoiding 'process is not defined' crashes in bundled environments -->
+  <!-- Process Shim: MUST be defined before any other scripts -->
   <script>
-    window.process = window.process || { env: {} };
+    window.process = { env: { API_KEY: "" } };
   </script>
 
   <!-- Tailwind Play CDN -->
@@ -34,27 +34,10 @@
       font-family: 'Inter', sans-serif;
       background-color: #f7f9fb;
       margin: 0;
+      -webkit-font-smoothing: antialiased;
     }
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #e2e8f0;
-      border-radius: 10px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: #cbd5e1;
-    }
-    /* Simple fade in for the root element to prevent jarring white flashes */
     #root {
-      animation: fadeIn 0.3s ease-in-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+      min-height: 100vh;
     }
   </style>
 
@@ -75,6 +58,7 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+  <!-- Standard relative path for the entry point -->
+  <script type="module" src="./index.tsx"></script>
 </body>
 </html>
