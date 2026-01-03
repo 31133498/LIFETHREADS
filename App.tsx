@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { DiaryEntry } from './types';
 import TimelineEntry from './components/TimelineEntry';
 import EntryModal from './components/EntryModal';
-import { Plus, Search, Sparkles, User, Settings, Info, Calendar as CalendarIcon, X as XIcon, AlertCircle } from 'lucide-react';
+/* Added Loader2 to imports from lucide-react */
+import { Plus, Search, Sparkles, User, Settings, Info, Calendar as CalendarIcon, X as XIcon, AlertCircle, Loader2 } from 'lucide-react';
 import { generateEntryReflection, generateYearSummary, generateReflectionImage } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -16,27 +17,29 @@ const App: React.FC = () => {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
 
+  // Initial Load
   useEffect(() => {
-    const saved = localStorage.getItem('lifeThreads_entries');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('lifeThreads_entries');
+      if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) setEntries(parsed);
-      } catch (e) {
-        console.error("Failed to parse saved entries");
-        localStorage.removeItem('lifeThreads_entries'); // Clear corrupted data
       }
+    } catch (e) {
+      console.error("Failed to load entries from storage", e);
     }
   }, []);
 
+  // Persistent Save with Safety Checks
   useEffect(() => {
     if (entries.length === 0) return;
     try {
-      localStorage.setItem('lifeThreads_entries', JSON.stringify(entries));
+      const serialized = JSON.stringify(entries);
+      localStorage.setItem('lifeThreads_entries', serialized);
       setStorageError(null);
     } catch (e) {
-      console.error("Storage limit reached:", e);
-      setStorageError("Memory storage is full! Please delete some entries or high-res photos.");
+      console.error("LocalStorage Limit Reached", e);
+      setStorageError("Storage full! Try deleting some photos or older entries to save new ones.");
     }
   }, [entries]);
 
@@ -59,7 +62,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteEntry = (id: string) => {
-    if (window.confirm("Delete this memory? This cannot be undone.")) {
+    if (window.confirm("Are you sure you want to delete this memory forever?")) {
       setEntries(prev => prev.filter(e => e.id !== id));
     }
   };
@@ -95,7 +98,7 @@ const App: React.FC = () => {
         e.id === id ? { ...e, aiReflection: reflection, aiImage: aiImage || undefined } : e
       ));
     } catch (err) {
-      console.error("Reflection failed", err);
+      console.error("AI Reflection failed", err);
     } finally {
       setIsReflectingId(null);
     }
@@ -108,94 +111,148 @@ const App: React.FC = () => {
       const summary = await generateYearSummary(entries.map(e => `${e.date}: ${e.content}`));
       setYearSummary(summary);
     } catch (err) {
-      console.error("Summary failed", err);
+      console.error("Year summary failed", err);
     } finally {
       setIsGeneratingSummary(false);
     }
   };
 
   return (
-    <div className="min-h-screen pb-24 md:pb-12 bg-slate-50 text-slate-900 selection:bg-indigo-100">
+    <div className="min-h-screen pb-24 md:pb-12 bg-slate-50 text-slate-900 selection:bg-indigo-100 overflow-x-hidden">
+      {/* Global Storage Warning */}
       {storageError && (
-        <div className="fixed top-20 inset-x-4 z-[100] max-w-lg mx-auto bg-rose-50 border border-rose-200 p-4 rounded-2xl flex items-center gap-3 shadow-xl text-rose-800 animate-in slide-in-from-top-4">
-          <AlertCircle className="shrink-0" size={20} />
+        <div className="fixed top-20 inset-x-4 z-[100] max-w-lg mx-auto bg-rose-50 border border-rose-200 p-4 rounded-2xl flex items-center gap-3 shadow-2xl text-rose-800 animate-in slide-in-from-top-4">
+          <AlertCircle className="shrink-0 text-rose-500" size={20} />
           <p className="text-sm font-semibold">{storageError}</p>
-          <button onClick={() => setStorageError(null)} className="ml-auto p-1 hover:bg-rose-100 rounded-full"><XIcon size={16} /></button>
+          <button onClick={() => setStorageError(null)} className="ml-auto p-1 hover:bg-rose-100 rounded-full transition-colors"><XIcon size={16} /></button>
         </div>
       )}
 
+      {/* Header */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
-              <Sparkles className="text-white" size={24} />
+              <Sparkles className="text-white" size={22} />
             </div>
             <div>
-              <h1 className="font-bold text-xl tracking-tight">LifeThreads</h1>
-              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Digital Diary</p>
+              <h1 className="font-bold text-xl tracking-tight text-slate-800">LifeThreads</h1>
+              <p className="text-[9px] uppercase font-black text-indigo-400 tracking-[0.2em] -mt-0.5">Your Story, Interconnected</p>
             </div>
           </div>
           
           <div className="hidden md:flex items-center gap-4">
-            <button className="text-sm font-bold text-indigo-600 px-4 py-2 hover:bg-indigo-50 rounded-lg transition-colors">Timeline</button>
-            <button className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><Settings size={18} /></button>
+            <button className="text-sm font-bold text-indigo-600 px-4 py-2 hover:bg-indigo-50 rounded-xl transition-colors">Thread View</button>
+            <div className="h-6 w-[1px] bg-slate-200"></div>
+            <button className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors">
+              <Settings size={18} />
+            </button>
           </div>
         </div>
       </header>
 
-      <section className="max-w-4xl mx-auto px-4 mt-8 mb-12">
-        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 md:p-12 text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
+      {/* Hero Section */}
+      <section className="max-w-4xl mx-auto px-4 mt-6 md:mt-10 mb-12">
+        <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2.5rem] p-8 md:p-14 text-white shadow-2xl shadow-indigo-200 relative overflow-hidden">
           <div className="relative z-10">
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">Document your year.</h2>
-            <p className="text-indigo-100 text-lg md:text-xl max-w-xl mb-8 leading-relaxed">
-              Interconnected memories organized in a beautiful thread, enhanced by AI vision.
+            <span className="inline-block px-3 py-1 bg-indigo-500/30 rounded-full text-[10px] font-bold uppercase tracking-widest mb-6 backdrop-blur-sm border border-indigo-400/30">Welcome back</span>
+            <h2 className="text-3xl md:text-5xl font-black mb-6 leading-[1.15]">How is your 2024 story unfolding?</h2>
+            <p className="text-indigo-100 text-lg md:text-xl max-w-xl mb-10 leading-relaxed font-medium">
+              A digital vault for your memories, connected like a conversation with your past self.
             </p>
             
             <div className="flex flex-wrap gap-4">
-              <button onClick={handleAddEntry} className="bg-white text-indigo-600 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-lg active:scale-95"><Plus size={20} /> New Entry</button>
-              <button onClick={handleGenerateYearSummary} disabled={isGeneratingSummary || entries.length === 0} className="bg-indigo-500/30 backdrop-blur-md border border-indigo-400/30 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-500/40 transition-all disabled:opacity-50">
-                <Sparkles size={20} className={isGeneratingSummary ? "animate-spin" : ""} /> {isGeneratingSummary ? "Thinking..." : "Summarize Year"}
+              <button onClick={handleAddEntry} className="bg-white text-indigo-700 px-8 py-4 rounded-2xl font-black flex items-center gap-2 hover:bg-slate-50 transition-all shadow-xl hover:-translate-y-0.5 active:scale-95 active:translate-y-0">
+                <Plus size={22} strokeWidth={3} /> New Entry
+              </button>
+              <button 
+                onClick={handleGenerateYearSummary} 
+                disabled={isGeneratingSummary || entries.length === 0} 
+                className="bg-indigo-500/40 backdrop-blur-lg border border-indigo-300/30 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-500/60 transition-all disabled:opacity-50"
+              >
+                {isGeneratingSummary ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />} 
+                {isGeneratingSummary ? "Thinking..." : "Summarize the Year"}
               </button>
             </div>
           </div>
-          <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+          <div className="absolute top-[-20%] right-[-10%] w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-[-10%] left-[-10%] w-60 h-60 bg-indigo-400/20 rounded-full blur-3xl"></div>
         </div>
 
         {yearSummary && (
-          <div className="mt-8 bg-white border border-indigo-100 p-8 rounded-3xl shadow-sm animate-in fade-in slide-in-from-top-4 relative">
-            <button onClick={() => setYearSummary(null)} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600"><XIcon size={20} /></button>
-            <div className="flex items-center gap-2 mb-4"><Sparkles className="text-indigo-600" size={20} /><h3 className="text-lg font-bold text-slate-800">Your Year's Story</h3></div>
-            <p className="text-slate-700 leading-relaxed italic whitespace-pre-wrap">{yearSummary}</p>
+          <div className="mt-8 bg-white border border-indigo-100 p-8 md:p-10 rounded-[2rem] shadow-sm animate-in fade-in slide-in-from-top-4 relative group">
+            <button onClick={() => setYearSummary(null)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-all">
+              <XIcon size={20} />
+            </button>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Sparkles size={24} /></div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">Your Year in Review</h3>
+            </div>
+            <p className="text-slate-700 leading-relaxed italic text-lg whitespace-pre-wrap font-serif">"{yearSummary}"</p>
           </div>
         )}
       </section>
 
-      <main className="max-w-4xl mx-auto px-4">
-        <div className="mb-10 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input type="text" placeholder="Search your life thread..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all" />
+      {/* Main Feed */}
+      <main className="max-w-3xl mx-auto px-4">
+        <div className="mb-12 relative group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} />
+          <input 
+            type="text" 
+            placeholder="Search through your life threads..." 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+            className="w-full pl-14 pr-6 py-5 bg-white border border-slate-200 rounded-3xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none shadow-sm transition-all text-lg" 
+          />
         </div>
 
-        <div className="relative">
+        <div className="relative pb-20">
           {filteredEntries.length > 0 ? (
             <div className="space-y-0">
               {filteredEntries.map((entry, idx) => (
-                <TimelineEntry key={entry.id} entry={entry} isLast={idx === filteredEntries.length - 1} onDelete={handleDeleteEntry} onEdit={handleEditEntry} onReflect={handleReflect} isReflecting={isReflectingId === entry.id} />
+                <TimelineEntry 
+                  key={entry.id} 
+                  entry={entry} 
+                  isLast={idx === filteredEntries.length - 1} 
+                  onDelete={handleDeleteEntry} 
+                  onEdit={handleEditEntry} 
+                  onReflect={handleReflect} 
+                  isReflecting={isReflectingId === entry.id} 
+                />
               ))}
             </div>
           ) : (
-            <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-              <Info className="mx-auto text-slate-300 mb-4" size={40} />
-              <h3 className="text-lg font-semibold text-slate-600">Nothing here yet</h3>
-              <p className="text-slate-400 mb-6">Start your journey by adding your first memory.</p>
-              <button onClick={handleAddEntry} className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors">Get Started</button>
+            <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-slate-200 shadow-sm">
+              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Info className="text-slate-300" size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-700 mb-3">Your thread is waiting.</h3>
+              <p className="text-slate-400 mb-10 max-w-xs mx-auto text-lg leading-relaxed">The best way to predict the future is to document the present.</p>
+              <button 
+                onClick={handleAddEntry} 
+                className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-xl hover:-translate-y-1 active:scale-95 active:translate-y-0"
+              >
+                Create My First Entry
+              </button>
             </div>
           )}
         </div>
       </main>
 
-      <button onClick={handleAddEntry} className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform"><Plus size={28} /></button>
-      <EntryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveEntry} initialData={editingEntry} />
+      {/* Floating Action (Mobile Only) */}
+      <button 
+        onClick={handleAddEntry} 
+        className="md:hidden fixed bottom-8 right-8 w-16 h-16 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-90 transition-transform active:bg-indigo-700"
+      >
+        <Plus size={32} strokeWidth={3} />
+      </button>
+
+      <EntryModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSave={handleSaveEntry} 
+        initialData={editingEntry} 
+      />
     </div>
   );
 };

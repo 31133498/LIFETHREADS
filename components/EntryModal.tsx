@@ -39,6 +39,7 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
     }
   }, [initialData, isOpen]);
 
+  // CRITICAL: Optimizes images to prevent localStorage QuotaExceededError (the "blank screen" issue)
   const optimizeImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -48,8 +49,8 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 1200;
-          const MAX_HEIGHT = 1200;
+          const MAX_WIDTH = 1000; // Limit resolution for storage
+          const MAX_HEIGHT = 1000;
           let width = img.width;
           let height = img.height;
 
@@ -69,6 +70,8 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Use JPEG compression (0.7 quality) to drastically reduce byte size
           const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
           resolve(dataUrl);
         };
@@ -89,16 +92,20 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
       setImages(prev => [...prev, ...optimizedImages]);
     } catch (error) {
       console.error("Image processing failed:", error);
-      alert("Failed to process images. Storage may be full.");
+      alert("Error processing images. They might be too large.");
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleReflect = async () => {
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      alert("Please write something first so the AI can reflect on it!");
+      return;
+    }
     setIsReflecting(true);
     try {
+      // Parallel execution for best performance
       const [reflection, image] = await Promise.all([
         generateEntryReflection(content, date),
         generateReflectionImage(content)
@@ -109,21 +116,6 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
       console.error("AI Generation error:", error);
     } finally {
       setIsReflecting(false);
-    }
-  };
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(e.type === "dragenter" || e.type === "dragover");
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFiles(e.dataTransfer.files);
     }
   };
 
@@ -164,7 +156,7 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
               type="datetime-local" 
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
             />
           </div>
 
@@ -175,25 +167,25 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
               <button 
                 onClick={handleReflect}
                 disabled={isReflecting || !content.trim()}
-                className="text-xs font-bold text-indigo-600 flex items-center gap-1 hover:text-indigo-700 disabled:opacity-40 transition-colors"
+                className="text-xs font-bold text-indigo-600 flex items-center gap-1.5 hover:bg-indigo-50 px-2 py-1 rounded-md transition-all disabled:opacity-40"
               >
                 {isReflecting ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} 
-                AI Reflect & Vision
+                Reflect with AI
               </button>
             </div>
             <textarea 
               autoFocus
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="What's on your mind? How was your day?"
-              className="w-full h-32 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"
+              placeholder="What's happening in your life? All moments are worth keeping..."
+              className="w-full h-32 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none text-slate-700"
             />
           </div>
 
           {/* Photos Area */}
           <div>
             <div className="flex justify-between items-center mb-4">
-              <label className="text-sm font-semibold text-slate-500">Personal Photos</label>
+              <label className="text-sm font-semibold text-slate-500">Your Photos</label>
               <button 
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isProcessing}
@@ -206,7 +198,14 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
             </div>
 
             <div 
-              onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
+              onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+              onDragOver={(e) => { e.preventDefault(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragActive(false);
+                if (e.dataTransfer.files) processFiles(e.dataTransfer.files);
+              }}
               className={`relative min-h-[140px] border-2 border-dashed rounded-2xl transition-all flex flex-col items-center justify-center p-4 ${
                 dragActive ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-slate-50'
               }`}
@@ -221,7 +220,10 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
                   {images.map((img, idx) => (
                     <div key={idx} className="relative aspect-square group">
                       <img src={img} className="w-full h-full object-cover rounded-xl border border-slate-200 cursor-pointer" onClick={() => setZoomImage(img)} />
-                      <button onClick={() => setImages(prev => prev.filter((_, i) => i !== idx))} className="absolute -top-1 -right-1 p-1 bg-rose-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setImages(prev => prev.filter((_, i) => i !== idx)); }} 
+                        className="absolute -top-1 -right-1 p-1 bg-rose-500 text-white rounded-full shadow-lg hover:scale-110 transition-transform"
+                      >
                         <X size={10} />
                       </button>
                     </div>
@@ -231,13 +233,17 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
             </div>
           </div>
 
-          {/* AI Result Area */}
+          {/* AI Preview Area */}
           {(aiReflection || aiImage || isReflecting) && (
-            <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 rounded-2xl p-4 md:p-5 relative overflow-hidden">
+            <div className="bg-gradient-to-br from-indigo-50 to-violet-100 border border-indigo-200 rounded-2xl p-5 relative overflow-hidden shadow-inner">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles size={14} className="text-indigo-600" />
-                <span className="text-xs font-bold text-indigo-600 uppercase tracking-tighter">AI Preview</span>
-                {aiReflection && <button onClick={() => {setAiReflection(undefined); setAiImage(undefined)}} className="ml-auto text-slate-400 hover:text-slate-600"><X size={14} /></button>}
+                <span className="text-xs font-bold text-indigo-700 uppercase tracking-tighter">AI Visual Insight</span>
+                {aiReflection && !isReflecting && (
+                  <button onClick={() => {setAiReflection(undefined); setAiImage(undefined)}} className="ml-auto text-slate-400 hover:text-slate-600">
+                    <X size={14} />
+                  </button>
+                )}
               </div>
               
               {isReflecting ? (
@@ -248,9 +254,12 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {aiReflection && <p className="text-sm text-indigo-900 italic leading-relaxed">"{aiReflection}"</p>}
+                  {aiReflection && <p className="text-sm text-indigo-900 italic leading-relaxed font-medium">"{aiReflection}"</p>}
                   {aiImage && (
-                    <img src={aiImage} alt="AI Vision" className="w-full h-auto rounded-xl shadow-sm border border-indigo-200/50 cursor-zoom-in" onClick={() => setZoomImage(aiImage)} />
+                    <div className="relative group">
+                      <img src={aiImage} alt="AI Vision" className="w-full h-auto rounded-xl shadow-md border border-white cursor-zoom-in transition-transform hover:scale-[1.01]" onClick={() => setZoomImage(aiImage)} />
+                      <div className="absolute bottom-2 right-2 bg-indigo-600/20 backdrop-blur-md px-2 py-0.5 rounded text-[8px] text-indigo-800 font-black uppercase">Generated Dream</div>
+                    </div>
                   )}
                 </div>
               )}
@@ -264,14 +273,15 @@ const EntryModal: React.FC<EntryModalProps> = ({ isOpen, onClose, onSave, initia
             disabled={!content.trim() || isProcessing || isReflecting}
             className="flex-grow flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg active:scale-[0.98]"
           >
-            <Save size={18} /> {initialData ? 'Update Memory' : 'Post to Thread'}
+            <Save size={18} /> {initialData ? 'Update Memory' : 'Save to My Thread'}
           </button>
         </div>
       </div>
 
       {zoomImage && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-8" onClick={() => setZoomImage(null)}>
+        <div className="fixed inset-0 z-[60] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-8 cursor-zoom-out" onClick={() => setZoomImage(null)}>
           <img src={zoomImage} className="max-w-full max-h-full rounded-lg shadow-2xl animate-in zoom-in-95" />
+          <button className="absolute top-6 right-6 p-2 text-white/50 hover:text-white"><X size={32} /></button>
         </div>
       )}
     </div>
