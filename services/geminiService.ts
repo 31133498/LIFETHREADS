@@ -1,11 +1,22 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// Always use the API key exclusively from process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Helper to get an instance of the AI client.
+ * Initializing inside the function prevents the app from crashing on load
+ * if the environment variables are not yet injected.
+ */
+function getAI() {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key is missing. Please ensure it is configured.");
+  }
+  return new GoogleGenAI({ apiKey });
+}
 
 export async function generateEntryReflection(content: string, date: string): Promise<string> {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `You are a thoughtful diary assistant. Here is a journal entry from ${date}: "${content}". Please provide a short (2-3 sentences) poetic or insightful reflection on this moment. Be warm and supportive.`,
@@ -19,6 +30,7 @@ export async function generateEntryReflection(content: string, date: string): Pr
 
 export async function generateReflectionImage(content: string): Promise<string | null> {
   try {
+    const ai = getAI();
     // Generate a visual prompt based on the content
     const promptResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -57,6 +69,7 @@ export async function generateReflectionImage(content: string): Promise<string |
 
 export async function generateYearSummary(entries: string[]): Promise<string> {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Summarize the following collection of diary entries into a cohesive story of a year. Focus on themes, growth, and emotions: \n\n ${entries.join("\n\n")}`,
