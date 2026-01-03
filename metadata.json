@@ -1,0 +1,7 @@
+{
+  "name": "LifeThreads Diary",
+  "description": "A chronological digital diary that organizes your memories into a beautiful, interconnected thread-like experience, enhanced by AI reflections.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
