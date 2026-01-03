@@ -3,13 +3,14 @@ import { GoogleGenAI } from "@google/genai";
 
 /**
  * Helper to get an instance of the AI client.
- * Initializing inside the function prevents the app from crashing on load
- * if the environment variables are not yet injected.
+ * Using a getter ensures we don't try to read process.env at the module level
+ * which can cause issues during bundling or startup.
  */
 function getAI() {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please ensure it is configured.");
+  if (!apiKey || apiKey === "undefined") {
+    // We throw a clear error here, but it's handled in the UI functions
+    throw new Error("API_KEY is not configured. Please set your environment variables.");
   }
   return new GoogleGenAI({ apiKey });
 }
@@ -22,16 +23,15 @@ export async function generateEntryReflection(content: string, date: string): Pr
       contents: `You are a thoughtful diary assistant. Here is a journal entry from ${date}: "${content}". Please provide a short (2-3 sentences) poetic or insightful reflection on this moment. Be warm and supportive.`,
     });
     return response.text || "A beautiful memory preserved.";
-  } catch (error) {
-    console.error("Gemini Error:", error);
-    return "Error generating reflection.";
+  } catch (error: any) {
+    console.warn("Gemini Reflection Error:", error.message);
+    return "The AI is currently quiet, but your memory is safely stored.";
   }
 }
 
 export async function generateReflectionImage(content: string): Promise<string | null> {
   try {
     const ai = getAI();
-    // Generate a visual prompt based on the content
     const promptResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Create a short, artistic image generation prompt (max 30 words) that captures the mood and essence of this diary entry: "${content}". Focus on abstract, dreamy, and nostalgic styles.`,
@@ -61,8 +61,8 @@ export async function generateReflectionImage(content: string): Promise<string |
       }
     }
     return null;
-  } catch (error) {
-    console.error("Gemini Image Error:", error);
+  } catch (error: any) {
+    console.warn("Gemini Image Error:", error.message);
     return null;
   }
 }
@@ -72,11 +72,11 @@ export async function generateYearSummary(entries: string[]): Promise<string> {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Summarize the following collection of diary entries into a cohesive story of a year. Focus on themes, growth, and emotions: \n\n ${entries.join("\n\n")}`,
+      contents: `Summarize the following collection of diary entries into a cohesive story of a journey. Focus on themes, growth, and emotions: \n\n ${entries.join("\n\n")}`,
     });
-    return response.text || "Your year was a journey of moments.";
-  } catch (error) {
-    console.error("Gemini Error:", error);
-    return "Could not generate summary.";
+    return response.text || "Your journey is a collection of beautiful threads.";
+  } catch (error: any) {
+    console.warn("Gemini Summary Error:", error.message);
+    return "Could not generate summary at this time.";
   }
 }
